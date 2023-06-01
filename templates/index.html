@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>INDEXXO</title>
+    <meta name="description" content="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="" />
+
+    <style>
+      .controls-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+      }
+      .steering-container {
+        width: 100%;
+        max-width: 400px;
+        aspect-ratio: 1/1;
+        overflow: hidden;
+      }
+      #steering-wheel {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        overflow: hidden;
+      }
+      #steering-wheel::after {
+        top: 0;
+        left: 0;
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+      }
+      #steering-wheel img {
+        height: 100%;
+        width: 100%;
+      }
+
+      .moving-container {
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+      }
+      .moving {
+        width: 100%;
+        display: flex;
+        justify-content: space-around;
+        max-width: 1000px;
+      }
+
+      .throttle-button {
+        width: 25%;
+        aspect-ratio: 1/2;
+      }
+
+      .throttle-button-active {
+        background-color: #ff0000;
+      }
+
+      .gear-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        width: 25%;
+        aspect-ratio: 1/2;
+        overflow: hidden;
+        position: relative;
+        background-color: #e6e6e6;
+        border-radius: 30px;
+      }
+      .gear-buttons {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+
+        overflow: hidden;
+      }
+      .gear-button {
+        width: 100%;
+        height: 100%;
+        outline: none;
+        border: none;
+        background-color: transparent;
+      }
+
+      .gear-selected {
+        position: relative;
+        background-color: #ff0000;
+        width: 100%;
+        height: 33%;
+        border-radius: 20px;
+        transform: translateY(0%);
+        transition: transform 0.5s ease-in-out;
+      }
+
+      .gear-fast {
+        transform: translateY(-100%);
+      }
+      .gear-reverse {
+        transform: translateY(100%);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="controls-container">
+      <div class="steering-container">
+        <div id="steering-wheel">
+          <img src="/static/steering_wheel.png" />
+        </div>
+      </div>
+      <div class="moving-container">
+        <div class="moving">
+          <div class="gear-container">
+            <div class="gear-selected"></div>
+            <div class="gear-buttons">
+              <button id="fast-btn" class="gear-button">FF</button>
+              <button id="normal-btn" class="gear-button">F</button>
+              <button id="reverse-btn" class="gear-button">R</button>
+            </div>
+          </div>
+          <button id="throttle-button" class="throttle-button"></button>
+        </div>
+      </div>
+    </div>
+
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+      integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+      crossorigin="anonymous"
+    ></script>
+    <script type="text/javascript" charset="utf-8">
+      var socket = io("/ws/carStatus");
+      socket.on("connect", function () {
+        console.log("connected");
+      });
+
+      const steeringWheel = document.getElementById("steering-wheel");
+      const throttleButton = document.getElementById("throttle-button");
+      var carStatus = {
+        steer: 90,
+      };
+
+      socket.on("carStatus", function (data) {
+        carStatus = data;
+        steeringWheel.style.transform = `rotate(${data.steer - 90}deg)`;
+
+        if (data.moving) throttleButton.classList.add("throttle-button-active");
+        else throttleButton.classList.remove("throttle-button-active");
+
+        switch (data.gear) {
+          case "fast":
+            gearSelectedElement.classList.add("gear-fast");
+            gearSelectedElement.classList.remove("gear-reverse");
+            break;
+          case "reverse":
+            gearSelectedElement.classList.add("gear-reverse");
+            gearSelectedElement.classList.remove("gear-fast");
+            break;
+          case "normal":
+            gearSelectedElement.classList.remove("gear-reverse");
+            gearSelectedElement.classList.remove("gear-fast");
+            break;
+        }
+      });
+
+      function emitSteer(angle) {
+        if (angle < 0) {
+          angle = 0;
+        }
+        if (angle > 180) {
+          angle = 180;
+        }
+        socket.emit("changeSteer", {
+          angle,
+        });
+      }
+
+      function emitGear(gear) {
+        socket.emit("changeGear", {
+          gear,
+        });
+      }
+      function emitMoving(moving) {
+        socket.emit("changeMoving", {
+          moving,
+        });
+      }
+
+      //mouse
+      throttleButton.addEventListener("mousedown", function () {
+        emitMoving(true);
+      });
+      throttleButton.addEventListener("mouseup", function () {
+        emitMoving(false);
+      });
+      //touch
+      throttleButton.addEventListener("touchstart", function () {
+        emitMoving(true);
+      });
+      throttleButton.addEventListener("touchend", function () {
+        emitMoving(false);
+      });
+
+      const gearSelectedElement = document.querySelector(".gear-selected");
+      const reverseBtn = document.getElementById("reverse-btn");
+      const normalBtn = document.getElementById("normal-btn");
+      const fastBtn = document.getElementById("fast-btn");
+
+      reverseBtn.addEventListener("click", function () {
+        emitGear("reverse");
+      });
+
+      normalBtn.addEventListener("click", function () {
+        emitGear("normal");
+      });
+
+      fastBtn.addEventListener("click", function () {
+        emitGear("fast");
+      });
+
+      //dragging steering wheel
+      let isDragging = false;
+      let startDraggingAngle = 0;
+      let startDraggingValue = 0;
+
+      function getAngle(clientX, clientY) {
+        const rect = steeringWheel.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+
+        const angle =
+          (Math.atan2(y - rect.height / 2, x - rect.width / 2) * 180) / Math.PI;
+
+        return angle;
+      }
+
+      function startMoveHandler(e) {
+        isDragging = true;
+        startDraggingAngle = getAngle(e.clientX, e.clientY)
+        startDraggingValue = carStatus.steer;
+      }
+      function stopMoveHandler(e) {
+        isDragging = false;
+      }
+      function movingHandler(e) {
+        if (isDragging) {
+          const angle = getAngle(e.clientX, e.clientY);
+
+          var  delta = startDraggingAngle - angle;
+          if (delta < -180) 
+          {
+            delta += 360;
+          }
+
+          var nextValue = Math.round(startDraggingValue - delta);
+
+          if (nextValue > 180) {
+            return;
+          }
+
+          emitSteer(nextValue);
+        }
+      }
+
+      //listeners for mouse
+      steeringWheel.addEventListener("mousedown", startMoveHandler);
+      document.addEventListener("mouseup", (e)=> {
+        stopMoveHandler(e);
+        emitMoving(false);
+      });
+      document.addEventListener("mousemove", movingHandler);
+      //listeners for touch
+      steeringWheel.addEventListener("touchstart", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        startMoveHandler(e.touches[0]);
+      });
+      document.addEventListener("touchend", stopMoveHandler);
+      document.addEventListener("touchmove", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        movingHandler(e.touches[0]);
+      });
+
+      //listener for keyboard with progressive steering
+      const keyPressed = {
+        Arrowleft: false,
+        ArrowRight: false,
+      };
+
+
+      function getMultiplier() {
+        return Math.abs((carStatus["steer"] - 90) /8) +2  
+      }
+
+
+      document.addEventListener("keydown", function (e) {
+        if (e.key == "ArrowLeft" || e.key == "a" || e.key == "A") {
+            keyPressed.Arrowleft = true;
+
+          const nextValue = Math.round(
+            parseInt(carStatus.steer) -
+              3 * getMultiplier()
+          );
+     
+          if (nextValue >= 0) {
+            emitSteer(nextValue);
+          } else {
+            emitSteer(0);
+          }
+        }
+
+        if (e.key == "ArrowRight" || e.key == "d" || e.key == "D") {
+            keyPressed.ArrowRight = true;
+            const nextValue = Math.round(
+                parseInt(carStatus.steer) +
+                3 * getMultiplier()
+            );
+          //console.log(nextValue);
+          if (nextValue <= 180) {
+            emitSteer(nextValue);
+          } else {
+            emitSteer(180);
+          }
+        }
+
+        if (e.key == " ") {
+          emitMoving(true);
+        }
+        if (e.key == "ArrowDown" || e.key == "s" || e.key == "S") {
+          emitGear("reverse");
+        }
+
+
+        if (e.key=="ArrowUp" || e.key == "w" || e.key == "W") {
+           
+            if (carStatus.gear == "normal") {
+                emitGear("fast");
+            } else {
+                emitGear("normal");}
+            
+        }
+      });
+      
+
+      document.addEventListener("keyup", function (e) {
+        if (e.key == "ArrowLeft" || e.key == "a" || e.key == "A") {
+
+          keyPressed.Arrowleft = null;
+
+            //smooth return to center
+            
+          const interval = setInterval(() => {
+            if (keyPressed.ArrowRight || keyPressed.Arrowleft) {
+              clearInterval(interval);
+              return;
+            }
+          
+            const nextValue = Math.round(
+              parseInt(carStatus.steer) +
+                3 * getMultiplier()
+            );
+            if (nextValue <= 90) {
+              emitSteer(nextValue);
+            } else {
+              emitSteer(90);
+              clearInterval(interval);
+            }
+          }, 50);
+        }
+        if (e.key == "ArrowRight" || e.key == "d" || e.key == "D") {
+         
+          keyPressed.ArrowRight = false
+          const interval = setInterval(() => {
+
+            if (keyPressed.ArrowRight || keyPressed.Arrowleft) {
+              clearInterval(interval);
+              return;
+            }
+     
+            const nextValue = Math.round(
+              parseInt(carStatus.steer) -
+                3 * getMultiplier()
+            );
+            if (nextValue >= 90) {
+              emitSteer(nextValue);
+            } else {
+              emitSteer(90);
+              clearInterval(interval);
+            }
+          }, 50);
+
+          
+         
+
+        }
+        if (e.key == " ") {
+          emitMoving(false);
+        }
+      });
+    </script>
+  </body>
+</html>

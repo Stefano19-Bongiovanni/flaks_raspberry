@@ -1,0 +1,41 @@
+from flask import Flask, request,render_template
+from gpio import rotateSteer, getSteer
+from flask_socketio import SocketIO, emit
+
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app, websocket=True, cors_allowed_origins="*", logger=True, engineio_logger=True)
+
+@app.route('/')
+def index():
+    return '<strong> Hello World </strong>'
+
+@socketio.on('message')
+def handle_message(message):
+    print('received message: ' + message)
+
+@socketio.on_error()        # Handles the default namespace
+def error_handler(e):
+    print('An error has occurred: ' + str(e))
+    pass
+
+@socketio.on('connect')
+def handle_connect():
+    print('WS connected')
+
+
+@app.route('/api/rotateSteer', methods=['POST'])
+def rotateSteerApi():
+    angle = request.json['angle']
+    rotateSteer(angle)
+    #send to socket
+    socketio.emit('steer', {'steer': angle}, namespace='/ws/carInfo')
+    return render_template('rotateSteer.html', angle=angle)
+
+@app.route('/ws/carInfo')
+def carInfo():
+    carInfoJson = {
+        'steer': getSteer()
+    }
+    return carInfoJson
