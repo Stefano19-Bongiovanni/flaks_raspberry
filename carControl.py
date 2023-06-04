@@ -1,15 +1,17 @@
 import RPi.GPIO as GPIO
 import pigpio
-import time
+import threading
 
 
 STEER_PIN = 17
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(STEER_PIN, GPIO.OUT)
+#GPIO.setmode(GPIO.BCM)
+#GPIO.setup(STEER_PIN, GPIO.OUT)
 # GPIO.setwarnings(False)
 
-pwmSteering = GPIO.PWM(STEER_PIN, 50)  # 50 Hz frequency
-pwmSteering.start(2.5)  # 0 degree
+pwmSteering = pigpio.pi()
+pwmSteering.set_mode(STEER_PIN, pigpio.OUTPUT)
+pwmSteering.set_PWM_frequency(STEER_PIN, 50)
+
 
 # time where the last steer was set
 
@@ -25,16 +27,27 @@ carStatus = {
     "steer": 2.5,
     "gear": "normal"
 }
-# deg : 180 == x : 12
+#pulsewidth: 500-2500
+# deg : 180 == x : 2000
 def degreeToPwm(degree):
-    return (degree * 12) / 180
+    return (degree * 2000 / 180) + 500
 
 
 def setSteer(angle):
     if (type(angle) != int or angle > 180 or angle < 0):
         return False
-    pwmSteering.ChangeDutyCycle(degreeToPwm(angle))
-    print("Stee pwm: ", angle)
+    if (angle == carStatus["steer"]):
+        return True
+
+    def set_pulse_width():
+        pwmSteering.set_servo_pulsewidth(STEER_PIN, degreeToPwm(angle))
+        print("Steer pwm: ", angle)
+
+    
+    #pwmSteering.set_servo_pulsewidth(STEER_PIN, degreeToPwm(angle))
+    #print("Stee pwm: ", angle)
+    #thread = threading.Thread(target=set_pulse_width)
+    #thread.start()
     carStatus["steer"] = angle
     return True
 
