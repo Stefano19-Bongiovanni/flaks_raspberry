@@ -46,8 +46,8 @@ def setSteer(angle):
     
     #pwmSteering.set_servo_pulsewidth(STEER_PIN, degreeToPwm(angle))
     #print("Stee pwm: ", angle)
-    #thread = threading.Thread(target=set_pulse_width)
-    #thread.start()
+    thread = threading.Thread(target=set_pulse_width)
+    thread.start()
     carStatus["steer"] = angle
     return True
 
