@@ -1,6 +1,4 @@
 from flask import Flask, render_template, request, send_from_directory
-
-
 from carControl import setSteer, setMoving, setGear
 from sockets import initSocket, emitCarStatus
     
